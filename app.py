@@ -2,27 +2,27 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 from models import db, Periode, Enseignant, Filiere, Matiere, Etudiant, Enseignement, Presence, Justification, Correspondre
 from datetime import datetime, time
-
+ 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'votre_cle_ici')
-
+ 
 # ---------- CONFIGURATION BASE DE DONNÉES (SQLite) ----------
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///esatic.db'  # SQLite en local
-
+ 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'connect_args': {'check_same_thread': False}  # Nécessaire pour SQLite
 }
-
+ 
 db.init_app(app)
-
+ 
 with app.app_context():
     db.create_all()
-
+ 
 # ---------- ROUTES (inchangées sauf indication) ----------
 @app.route('/verif')
 def verif():
@@ -47,7 +47,7 @@ def verif():
     <li>Justifications : {justifications}</li>
     </ul>
     """
-
+ 
 # ---------- MODULE 1 : PARAMÉTRAGE ----------
 @app.route('/')
 @app.route('/parametrage')
@@ -61,7 +61,7 @@ def parametrage():
                            enseignants=enseignants,
                            filieres=filieres,
                            matieres=matieres)
-
+ 
 # --- Périodes ---
 @app.route('/ajouter_periode', methods=['POST'])
 def ajouter_periode():
@@ -71,7 +71,7 @@ def ajouter_periode():
     db.session.commit()
     flash('Période ajoutée', 'success')
     return redirect(url_for('parametrage'))
-
+ 
 @app.route('/supprimer_periode/<int:id>')
 def supprimer_periode(id):
     periode = Periode.query.get_or_404(id)
@@ -79,7 +79,7 @@ def supprimer_periode(id):
     db.session.commit()
     flash('Période supprimée', 'info')
     return redirect(url_for('parametrage'))
-
+ 
 # --- Enseignants ---
 @app.route('/ajouter_enseignant', methods=['POST'])
 def ajouter_enseignant():
@@ -95,7 +95,7 @@ def ajouter_enseignant():
     db.session.commit()
     flash('Enseignant ajouté', 'success')
     return redirect(url_for('parametrage'))
-
+ 
 @app.route('/supprimer_enseignant/<int:id>')
 def supprimer_enseignant(id):
     enseignant = Enseignant.query.get_or_404(id)
@@ -103,7 +103,7 @@ def supprimer_enseignant(id):
     db.session.commit()
     flash('Enseignant supprimé', 'info')
     return redirect(url_for('parametrage'))
-
+ 
 # --- Filières ---
 @app.route('/ajouter_filiere', methods=['POST'])
 def ajouter_filiere():
@@ -113,7 +113,7 @@ def ajouter_filiere():
     db.session.commit()
     flash('Filière ajoutée', 'success')
     return redirect(url_for('parametrage'))
-
+ 
 @app.route('/supprimer_filiere/<int:id>')
 def supprimer_filiere(id):
     filiere = Filiere.query.get_or_404(id)
@@ -121,7 +121,7 @@ def supprimer_filiere(id):
     db.session.commit()
     flash('Filière supprimée', 'info')
     return redirect(url_for('parametrage'))
-
+ 
 # --- Matières ---
 @app.route('/ajouter_matiere', methods=['POST'])
 def ajouter_matiere():
@@ -131,7 +131,7 @@ def ajouter_matiere():
     db.session.commit()
     flash('Matière ajoutée', 'success')
     return redirect(url_for('parametrage'))
-
+ 
 @app.route('/supprimer_matiere/<int:id>')
 def supprimer_matiere(id):
     matiere = Matiere.query.get_or_404(id)
@@ -139,7 +139,7 @@ def supprimer_matiere(id):
     db.session.commit()
     flash('Matière supprimée', 'info')
     return redirect(url_for('parametrage'))
-
+ 
 # ---------- MODULE 2 : SAISIE ----------
 @app.route('/saisie')
 def saisie():
@@ -158,28 +158,20 @@ def saisie():
                            enseignants=enseignants,
                            periodes=periodes,
                            absences_non_justifiees=absences_non_justifiees)
-
+ 
 @app.route('/inscrire_etudiant', methods=['POST'])
 def inscrire_etudiant():
     nom = request.form['nom']
     prenom = request.form['prenom']
-    matricule = request.form['matricule']
-    filiere_id = request.form['filiere_id']
-    # Récupération du sexe (si absent, valeur par défaut 'M')
+    code_filiere = request.form['code_filiere']
     sexe = request.form.get('sexe', 'M')
-
-    etudiant_existant = Etudiant.query.filter_by(matricule=matricule).first()
-    if etudiant_existant:
-        flash(f"Erreur : Un étudiant avec le matricule '{matricule}' existe déjà.", "danger")
-        return redirect(url_for('saisie'))
-
-    etudiant = Etudiant(nom=nom, prenom=prenom, matricule=matricule,
-                        filiere_id=filiere_id, sexe=sexe)
+ 
+    etudiant = Etudiant(nom=nom, prenom=prenom, code_filiere=code_filiere, sexe=sexe)
     db.session.add(etudiant)
     db.session.commit()
     flash('Étudiant inscrit avec succès', 'success')
     return redirect(url_for('saisie'))
-
+ 
 @app.route('/enregistrer_presence', methods=['POST'])
 def enregistrer_presence():
     etudiant_id = request.form['etudiant_id']
@@ -193,7 +185,7 @@ def enregistrer_presence():
     statut = request.form['statut']
     commentaire = request.form.get('commentaire', '')
     envoyer_message = 'envoyer_message' in request.form
-
+ 
     enseignement = Enseignement.query.filter_by(
         date_enseignement=date_ens,
         id_enseignant=id_enseignant,
@@ -213,7 +205,7 @@ def enregistrer_presence():
         )
         db.session.add(enseignement)
         db.session.commit()
-
+ 
     presence = Presence.query.get((etudiant_id, enseignement.id_enseignement))
     if presence:
         presence.statut = statut
@@ -227,12 +219,12 @@ def enregistrer_presence():
         )
         db.session.add(presence)
     db.session.commit()
-
+ 
     if statut != 'PRESENT' and envoyer_message:
         flash(f'📨 Message envoyé à l\'étudiant concernant son statut ({statut}) du {date_ens}', 'info')
     flash('Présence enregistrée', 'success')
     return redirect(url_for('saisie'))
-
+ 
 @app.route('/justifier_absence/<int:id_etudiant>/<int:id_enseignement>', methods=['POST'])
 def justifier_absence(id_etudiant, id_enseignement):
     motif = request.form['motif']
@@ -252,7 +244,7 @@ def justifier_absence(id_etudiant, id_enseignement):
         db.session.commit()
     flash('Absence justifiée', 'success')
     return redirect(url_for('saisie'))
-
+ 
 # ---------- MODULE 3 : ÉDITION ----------
 @app.route('/edition')
 def edition():
@@ -265,14 +257,14 @@ def edition():
                            periodes=periodes,
                            etudiants=etudiants,
                            absences_justifiees=absences_justifiees)
-
+ 
 @app.route('/matieres_par_filiere')
 def matieres_par_filiere():
     results = db.session.query(Filiere, Matiere, Correspondre.volume_horaire)\
         .join(Correspondre, Filiere.code_filiere == Correspondre.code_filiere)\
         .join(Matiere, Matiere.code_matiere == Correspondre.code_matiere).all()
     return render_template('matieres_par_filiere.html', results=results)
-
+ 
 @app.route('/absence_par_periode/<int:id_periode>')
 def absence_par_periode(id_periode):
     periode = Periode.query.get_or_404(id_periode)
@@ -288,7 +280,7 @@ def absence_par_periode(id_periode):
     ).group_by(Filiere.code_filiere).all()
     result_dict = {row[0]: row[1] for row in results}
     return render_template('rapport_periode.html', periode=periode, result=result_dict)
-
+ 
 @app.route('/rapport_etudiant/<int:etudiant_id>')
 def rapport_etudiant(etudiant_id):
     etudiant = Etudiant.query.get_or_404(etudiant_id)
@@ -303,11 +295,11 @@ def rapport_etudiant(etudiant_id):
                            absents=absents,
                            justifiees=justifiees,
                            justifications=justifications)
-
+ 
 @app.route('/db_check')
 def db_check():
     # Compatible avec MySQL, PostgreSQL, SQLite...
     return f"Base de données utilisée : {db.engine.url}"
-
+ 
 if __name__ == '__main__':
     app.run(debug=True)
