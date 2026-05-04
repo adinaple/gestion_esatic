@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+    <div class="card-header">Matières par filière (correspondance)</div>
+    <div class="card-body">
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr><th>Filière</th><th>Matière</th><th>Volume horaire</th></tr>
+            </thead>
+            <tbody>
+            {% for filiere, matiere, volume in results %}
+            <tr>
+                <td>{{ filiere.libelle_filiere }}</td>
+                <td>{{ matiere.nom_matiere }}</td>
+                <td>{{ volume }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center">Aucune correspondance définie</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('edition') }}" class="btn btn-secondary">← Retour aux rapports</a>
+    </div>
+</div>
+{% endblock %}

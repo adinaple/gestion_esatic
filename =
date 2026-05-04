@@ -1,0 +1,184 @@
+from flask import Flask, render_template, request, redirect, url_for, flash
+from models import db, Periode, Enseignant, Filiere, Matiere, Etudiant, Absence
+from datetime import datetime
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'votre_cle_ici'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///absences.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+
+with app.app_context():
+    db.create_all()
+
+# ---------- MODULE 1 : PARAMÉTRAGE ----------
+@app.route('/')
+@app.route('/parametrage')
+def parametrage():
+    periodes = Periode.query.all()
+    enseignants = Enseignant.query.all()
+    filieres = Filiere.query.all()
+    matieres = Matiere.query.all()
+    return render_template('parametrage.html', periodes=periodes, enseignants=enseignants,
+                           filieres=filieres, matieres=matieres)
+
+@app.route('/ajouter_periode', methods=['POST'])
+def ajouter_periode():
+    nom = request.form['nom']
+    debut = datetime.strptime(request.form['date_debut'], '%Y-%m-%d').date()
+    fin = datetime.strptime(request.form['date_fin'], '%Y-%m-%d').date()
+    periode = Periode(nom=nom, date_debut=debut, date_fin=fin)
+    db.session.add(periode)
+    db.session.commit()
+    flash('Période ajoutée', 'success')
+    return redirect(url_for('parametrage'))
+
+@app.route('/supprimer_periode/<int:id>')
+def supprimer_periode(id):
+    periode = Periode.query.get_or_404(id)
+    db.session.delete(periode)
+    db.session.commit()
+    flash('Période supprimée', 'info')
+    return redirect(url_for('parametrage'))
+
+@app.route('/ajouter_enseignant', methods=['POST'])
+def ajouter_enseignant():
+    nom = request.form['nom']
+    email = request.form['email']
+    enseignant = Enseignant(nom=nom, email=email)
+    db.session.add(enseignant)
+    db.session.commit()
+    flash('Enseignant ajouté', 'success')
+    return redirect(url_for('parametrage'))
+
+@app.route('/supprimer_enseignant/<int:id>')
+def supprimer_enseignant(id):
+    enseignant = Enseignant.query.get_or_404(id)
+    db.session.delete(enseignant)
+    db.session.commit()
+    flash('Enseignant supprimé', 'info')
+    return redirect(url_for('parametrage'))
+
+@app.route('/ajouter_filiere', methods=['POST'])
+def ajouter_filiere():
+    nom = request.form['nom']
+    filiere = Filiere(nom=nom)
+    db.session.add(filiere)
+    db.session.commit()
+    flash('Filière ajoutée', 'success')
+    return redirect(url_for('parametrage'))
+
+@app.route('/supprimer_filiere/<int:id>')
+def supprimer_filiere(id):
+    filiere = Filiere.query.get_or_404(id)
+    db.session.delete(filiere)
+    db.session.commit()
+    flash('Filière supprimée', 'info')
+    return redirect(url_for('parametrage'))
+
+@app.route('/ajouter_matiere', methods=['POST'])
+def ajouter_matiere():
+    code = request.form['code']
+    nom = request.form['nom']
+    enseignant_id = request.form['enseignant_id']
+    filiere_id = request.form['filiere_id']
+    matiere = Matiere(code=code, nom=nom, enseignant_id=enseignant_id, filiere_id=filiere_id)
+    db.session.add(matiere)
+    db.session.commit()
+    flash('Matière ajoutée', 'success')
+    return redirect(url_for('parametrage'))
+
+@app.route('/supprimer_matiere/<int:id>')
+def supprimer_matiere(id):
+    matiere = Matiere.query.get_or_404(id)
+    db.session.delete(matiere)
+    db.session.commit()
+    flash('Matière supprimée', 'info')
+    return redirect(url_for('parametrage'))
+
+# ---------- MODULE 2 : SAISIE ----------
+@app.route('/saisie')
+def saisie():
+    etudiants = Etudiant.query.all()
+    matieres = Matiere.query.all()
+    filieres = Filiere.query.all()
+    absences_non_justifiees = Absence.query.filter_by(justifiee=False, status='absent').all()
+    return render_template('saisie.html', etudiants=etudiants, matieres=matieres,
+                           filieres=filieres, absences_non_justifiees=absences_non_justifiees)
+
+@app.route('/inscrire_etudiant', methods=['POST'])
+def inscrire_etudiant():
+    nom = request.form['nom']
+    prenom = request.form['prenom']
+    matricule = request.form['matricule']
+    filiere_id = request.form['filiere_id']
+    etudiant = Etudiant(nom=nom, prenom=prenom, matricule=matricule, filiere_id=filiere_id)
+    db.session.add(etudiant)
+    db.session.commit()
+    flash('Étudiant inscrit', 'success')
+    return redirect(url_for('saisie'))
+
+@app.route('/enregistrer_presence', methods=['POST'])
+def enregistrer_presence():
+    etudiant_id = request.form['etudiant_id']
+    matiere_id = request.form['matiere_id']
+    date_abs = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
+    status = request.form['status']
+    envoyer_message = 'envoyer_message' in request.form
+
+    absence = Absence(etudiant_id=etudiant_id, matiere_id=matiere_id,
+                      date=date_abs, status=status, message_envoye=False)
+    if status == 'absent' and envoyer_message:
+        absence.message_envoye = True
+        flash(f'📨 Message envoyé à l\'étudiant concernant l\'absence du {date_abs}', 'info')
+    db.session.add(absence)
+    db.session.commit()
+    flash('Présence/absence enregistrée', 'success')
+    return redirect(url_for('saisie'))
+
+@app.route('/justifier_absence/<int:id>', methods=['POST'])
+def justifier_absence(id):
+    absence = Absence.query.get_or_404(id)
+    justification = request.form['justification']
+    absence.justification = justification
+    absence.justifiee = True
+    db.session.commit()
+    flash('Absence justifiée', 'success')
+    return redirect(url_for('saisie'))
+
+# ---------- MODULE 3 : ÉDITION ----------
+@app.route('/edition')
+def edition():
+    filieres = Filiere.query.all()
+    periodes = Periode.query.all()
+    etudiants = Etudiant.query.all()
+    absences_justifiees = Absence.query.filter_by(justifiee=True).all()
+    return render_template('edition.html', filieres=filieres, periodes=periodes,
+                           etudiants=etudiants, absences_justifiees=absences_justifiees)
+
+@app.route('/absence_par_periode/<int:periode_id>')
+def absence_par_periode(periode_id):
+    periode = Periode.query.get_or_404(periode_id)
+    absences = Absence.query.join(Etudiant).filter(
+        Absence.date.between(periode.date_debut, periode.date_fin),
+        Absence.status == 'absent'
+    ).all()
+    result = {}
+    for absence in absences:
+        filiere_nom = absence.etudiant.filiere.nom
+        result[filiere_nom] = result.get(filiere_nom, 0) + 1
+    return render_template('rapport_periode.html', periode=periode, result=result)
+
+@app.route('/rapport_etudiant/<int:etudiant_id>')
+def rapport_etudiant(etudiant_id):
+    etudiant = Etudiant.query.get_or_404(etudiant_id)
+    absences = Absence.query.filter_by(etudiant_id=etudiant_id).all()
+    presents = [a for a in absences if a.status == 'present']
+    absents = [a for a in absences if a.status == 'absent']
+    justifiees = [a for a in absents if a.justifiee]
+    return render_template('rapport_etudiant.html', etudiant=etudiant,
+                           presents=presents, absents=absents, justifiees=justifiees)
+
+if __name__ == '__main__':
+    app.run(debug=True)

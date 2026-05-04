@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block content %}
+<h4><i class="fas fa-pen-alt"></i> Saisie</h4>
+<div class="row">
+    <!-- Inscription étudiants (ajout sexe) -->
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">Inscription des étudiants</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('inscrire_etudiant') }}" class="row g-2 mb-3">
+                    <div class="col"><input type="text" name="nom" class="form-control" placeholder="Nom" required></div>
+                    <div class="col"><input type="text" name="prenom" class="form-control" placeholder="Prénom" required></div>
+                    <div class="col"><select name="sexe" class="form-select" required>
+                        <option value="M">Homme</option>
+                        <option value="F">Femme</option>
+                    </select></div>
+                    <div class="col"><select name="code_filiere" class="form-select" required>
+                        {% for f in filieres %}<option value="{{ f.code_filiere }}">{{ f.libelle_filiere }}</option>{% endfor %}
+                    </select></div>
+                    <div class="col-auto"><button type="submit" class="btn btn-esatic">Inscrire</button></div>
+                </form>
+                <h6>Liste des étudiants</h6>
+                <ul class="list-group">
+                    {% for e in etudiants %}
+                    <li class="list-group-item">{{ e.prenom }} {{ e.nom }} ({{ e.sexe }}) - {{ e.filiere.libelle_filiere }}</li>
+                    {% else %}
+                    <li class="list-group-item text-muted">Aucun étudiant inscrit</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enregistrement présence/absence (avec champs heure, enseignant, période) -->
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">Enregistrement présence/absence</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('enregistrer_presence') }}">
+                    <select name="etudiant_id" class="form-select mb-2" required>
+                        <option value="">-- Étudiant --</option>
+                        {% for e in etudiants %}<option value="{{ e.id_etudiant }}">{{ e.prenom }} {{ e.nom }}</option>{% endfor %}
+                    </select>
+                    <select name="matiere_id" class="form-select mb-2" required>
+                        <option value="">-- Matière --</option>
+                        {% for m in matieres %}<option value="{{ m.code_matiere }}">{{ m.nom_matiere }}</option>{% endfor %}
+                    </select>
+                    <input type="date" name="date" class="form-control mb-2" required>
+                    <input type="time" name="heure_debut" class="form-control mb-2" placeholder="Heure début" required>
+                    <input type="time" name="heure_fin" class="form-control mb-2" placeholder="Heure fin" required>
+                    <select name="id_enseignant" class="form-select mb-2" required>
+                        <option value="">-- Enseignant --</option>
+                        {% for ens in enseignants %}<option value="{{ ens.id_enseignant }}">{{ ens.prenom }} {{ ens.nom }}</option>{% endfor %}
+                    </select>
+                    <select name="code_filiere" class="form-select mb-2" required>
+                        <option value="">-- Filière --</option>
+                        {% for f in filieres %}<option value="{{ f.code_filiere }}">{{ f.libelle_filiere }}</option>{% endfor %}
+                    </select>
+                    <select name="id_periode" class="form-select mb-2" required>
+                        <option value="">-- Période --</option>
+                        {% for p in periodes %}<option value="{{ p.id_periode }}">Période du {{ p.date_periode }}</option>{% endfor %}
+                    </select>
+                    <select name="statut" class="form-select mb-2" required>
+                        <option value="PRESENT">Présent(e)</option>
+                        <option value="ABSENT">Absent(e)</option>
+                        <option value="RETARD">Retard</option>
+                    </select>
+                    <input type="text" name="commentaire" class="form-control mb-2" placeholder="Commentaire (optionnel)">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="envoyer_message" id="sendMsg">
+                        <label class="form-check-label" for="sendMsg">Envoyer un message si absent ou retard</label>
+                    </div>
+                    <button type="submit" class="btn btn-esatic w-100">Enregistrer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Justification des absences -->
+    <div class="col-md-12 mb-3">
+        <div class="card">
+            <div class="card-header">Justification des absences</div>
+            <div class="card-body">
+                {% if absences_non_justifiees %}
+                    <ul class="list-group">
+                    {% for a in absences_non_justifiees %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><strong>{{ a.etudiant.prenom }} {{ a.etudiant.nom }}</strong> - {{ a.enseignement.matiere.nom_matiere }} ({{ a.enseignement.date_enseignement }})</span>
+                            <form method="post" action="{{ url_for('justifier_absence', id_etudiant=a.id_etudiant, id_enseignement=a.id_enseignement) }}" class="d-flex gap-2">
+                                <input type="text" name="motif" placeholder="Motif de justification" class="form-control form-control-sm" required>
+                                <button type="submit" class="btn btn-sm btn-warning">Justifier</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">Aucune absence en attente de justification.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

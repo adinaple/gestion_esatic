@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+    <div class="card-header">Absences par filière - Période du {{ periode.date_periode }}</div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr><th>Filière</th><th>Nombre d'absences</th></tr>
+            </thead>
+            <tbody>
+            {% for filiere, count in result.items() %}
+            <tr><td>{{ filiere }}</td><td>{{ count }}</td></tr>
+            {% else %}
+            <tr><td colspan="2" class="text-center">Aucune absence sur cette période</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('edition') }}" class="btn btn-secondary">← Retour aux rapports</a>
+    </div>
+</div>
+{% endblock %}

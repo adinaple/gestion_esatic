@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+<h4><i class="fas fa-chart-line"></i> Édition et rapports</h4>
+<div class="row">
+    <!-- Matière par filière (via table CORRESPONDRE) -->
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">Matières par filière</div>
+            <div class="card-body">
+                <a href="{{ url_for('matieres_par_filiere') }}" class="btn btn-esatic btn-sm">Voir détail</a>
+                <div class="mt-2 text-muted">Cliquez pour consulter l’affectation des matières aux filières.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Absence par filière et période (select avec les périodes) -->
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">Absences par filière & période</div>
+            <div class="card-body">
+                <select class="form-select" onchange="window.location.href='/absence_par_periode/'+this.value">
+                    <option value="">-- Choisir une période --</option>
+                    {% for p in periodes %}
+                    <option value="{{ p.id_periode }}">Période du {{ p.date_periode }}</option>
+                    {% endfor %}
+                </select>
+                <div class="mt-3 text-muted">Sélectionnez une période pour voir les absences par filière.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Par étudiant -->
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">Rapport par étudiant</div>
+            <div class="card-body">
+                <select class="form-select" onchange="window.location.href='/rapport_etudiant/'+this.value">
+                    <option value="">-- Sélectionner un étudiant --</option>
+                    {% for e in etudiants %}
+                    <option value="{{ e.id_etudiant }}">{{ e.prenom }} {{ e.nom }} ({{ e.sexe }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des absences justifiées -->
+    <div class="col-md-12 mb-3">
+        <div class="card">
+            <div class="card-header">Liste des absences justifiées</div>
+            <div class="card-body">
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr><th>Étudiant</th><th>Matière</th><th>Date</th><th>Justification</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for a in absences_justifiees %}
+                        <tr>
+                            <td>{{ a.etudiant.prenom }} {{ a.etudiant.nom }} ({{ a.etudiant.sexe }})</td>
+                            <td>{{ a.enseignement.matiere.nom_matiere }}</td>
+                            <td>{{ a.enseignement.date_enseignement }}</td>
+                            <td>
+                                {% set justif = a.etudiant.justifications|selectattr('id_enseignement', 'equalto', a.id_enseignement)|first %}
+                                {{ justif.motif if justif else '—' }}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4" class="text-center text-muted">Aucune absence justifiée</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

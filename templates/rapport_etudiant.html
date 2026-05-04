@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+    <div class="card-header">Rapport pour {{ etudiant.prenom }} {{ etudiant.nom }} ({{ etudiant.sexe }})</div>
+    <div class="card-body">
+        <p><strong>Présences :</strong> {{ presents|length }} | <strong>Absences + Retards :</strong> {{ absents|length }} | <strong>Dont justifiées :</strong> {{ justifiees|length }}</p>
+        <h5>Détail des présences / absences</h5>
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Date</th><th>Matière</th><th>Statut</th><th>Justifiée ?</th><th>Motif</th></tr>
+            </thead>
+            <tbody>
+            {% for p in presents %}
+            <tr>
+                <td>{{ p.enseignement.date_enseignement }}</td>
+                <td>{{ p.enseignement.matiere.nom_matiere }}</td>
+                <td>Présent</td>
+                <td>—</td>
+                <td>—</td>
+            </tr>
+            {% endfor %}
+            {% for a in absents %}
+            <tr>
+                <td>{{ a.enseignement.date_enseignement }}</td>
+                <td>{{ a.enseignement.matiere.nom_matiere }}</td>
+                <td>{{ a.statut }}</td>
+                <td>{% if a.statut == 'JUSTIFIE' %}✅ Oui{% else %}❌ Non{% endif %}</td>
+                <td>
+                    {% set j = justifications.get((a.id_etudiant, a.id_enseignement)) %}
+                    {{ j.motif if j else '—' }}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center">Aucune présence ou absence enregistrée</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('edition') }}" class="btn btn-secondary">← Retour aux rapports</a>
+    </div>
+</div>
+{% endblock %}
