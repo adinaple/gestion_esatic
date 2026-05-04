@@ -1,18 +1,29 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 from models import db, Periode, Enseignant, Filiere, Matiere, Etudiant, Enseignement, Presence, Justification, Correspondre
 from datetime import datetime, time
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'votre_cle_ici'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost:3306/esatic'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'votre_cle_ici')
+
+# ---------- CONFIGURATION BASE DE DONNÉES (SQLite) ----------
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///esatic.db'  # SQLite en local
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'connect_args': {'check_same_thread': False}  # Nécessaire pour SQLite
+}
 
 db.init_app(app)
 
 with app.app_context():
     db.create_all()
 
-# ---------- ROUTE DE DIAGNOSTIC (à supprimer plus tard) ----------
+# ---------- ROUTES (inchangées sauf indication) ----------
 @app.route('/verif')
 def verif():
     periodes = Periode.query.count()
@@ -137,7 +148,6 @@ def saisie():
     filieres = Filiere.query.all()
     enseignants = Enseignant.query.all()
     periodes = Periode.query.all()
-    # CORRECTION : jointure explicite avec les deux clés
     absences_non_justifiees = db.session.query(Presence).filter(Presence.statut == 'ABSENT')\
         .outerjoin(Justification, (Presence.id_etudiant == Justification.id_etudiant) & (Presence.id_enseignement == Justification.id_enseignement))\
         .filter(Justification.id_justification == None).all()
@@ -155,14 +165,16 @@ def inscrire_etudiant():
     prenom = request.form['prenom']
     matricule = request.form['matricule']
     filiere_id = request.form['filiere_id']
+    # Récupération du sexe (si absent, valeur par défaut 'M')
+    sexe = request.form.get('sexe', 'M')
 
-    # Vérifier si le matricule existe déjà
     etudiant_existant = Etudiant.query.filter_by(matricule=matricule).first()
     if etudiant_existant:
         flash(f"Erreur : Un étudiant avec le matricule '{matricule}' existe déjà.", "danger")
         return redirect(url_for('saisie'))
 
-    etudiant = Etudiant(nom=nom, prenom=prenom, matricule=matricule, filiere_id=filiere_id)
+    etudiant = Etudiant(nom=nom, prenom=prenom, matricule=matricule,
+                        filiere_id=filiere_id, sexe=sexe)
     db.session.add(etudiant)
     db.session.commit()
     flash('Étudiant inscrit avec succès', 'success')
@@ -178,7 +190,7 @@ def enregistrer_presence():
     id_enseignant = request.form['id_enseignant']
     code_filiere = request.form['code_filiere']
     id_periode = request.form['id_periode']
-    statut = request.form['statut']  # PRESENT, ABSENT, RETARD, JUSTIFIE
+    statut = request.form['statut']
     commentaire = request.form.get('commentaire', '')
     envoyer_message = 'envoyer_message' in request.form
 
@@ -291,13 +303,11 @@ def rapport_etudiant(etudiant_id):
                            absents=absents,
                            justifiees=justifiees,
                            justifications=justifications)
- 
-
 
 @app.route('/db_check')
 def db_check():
-    from sqlalchemy import text
-    result = db.session.execute(text("SELECT DATABASE()")).scalar()
-    return f"Base de données actuelle : {result}"
+    # Compatible avec MySQL, PostgreSQL, SQLite...
+    return f"Base de données utilisée : {db.engine.url}"
+
 if __name__ == '__main__':
     app.run(debug=True)
